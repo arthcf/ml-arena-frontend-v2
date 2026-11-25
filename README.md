@@ -4,19 +4,25 @@ Interface web do **ML Arena**, uma ferramenta para registrar execuções ("runs"
 Machine Learning, acompanhar métricas e hiperparâmetros, e comparar dois runs lado a lado
 (incluindo os gráficos de medido×previsto e resíduos gerados a partir do CSV enviado).
 
-Projeto desenvolvido para a disciplina **Desenvolvimento de Software para Nuvem** (UFC).
+Projeto desenvolvido para a disciplina **Desenvolvimento de Software para Nuvem** (UFC). No
+**Trabalho 2**, a aplicação inteira roda em containers com Docker Compose.
+
+> **Para rodar a aplicação completa**, siga o README do backend:
+> [ml-arena-backend-v2](https://github.com/arthcf/ml-arena-backend-v2#como-executar). O
+> `docker-compose.yaml` fica lá e constrói este frontend a partir deste repositório, clonado ao lado.
 
 ## Arquitetura: por que dois repositórios
 
 A aplicação é dividida em dois serviços independentes:
 
-- **`ml-arena-backend`**: a API (FastAPI). Guarda os dados em PostgreSQL (RDS), armazena CSVs e
-  gráficos no S3, processa o CSV de forma assíncrona num worker separado (SNS/SQS), autentica
-  usuários via JWT, audita ações no DynamoDB e usa Redis/ElastiCache como cache. É ele quem fala
-  com toda a infraestrutura AWS.
-- **`ml-arena-frontend`** (este repositório): só a interface — renderiza as telas e repassa as
-  ações do usuário pra API do backend. Não guarda dados, não fala com RDS/S3/DynamoDB/SQS
-  diretamente, e não precisa de nenhuma credencial AWS pra funcionar.
+- **`ml-arena-backend-v2`**: a API (FastAPI). Guarda os dados em PostgreSQL, armazena CSVs e
+  gráficos no MinIO, processa o CSV de forma assíncrona num worker separado (RabbitMQ), autentica
+  usuários via JWT, audita ações no DynamoDB e usa Redis como cache. É ele quem fala com toda a
+  infraestrutura.
+- **`ml-arena-frontend-v2`** (este repositório): só a interface — renderiza as telas e repassa as
+  ações do usuário pra API do backend. Não guarda dados, não fala com banco, MinIO, fila ou
+  DynamoDB diretamente, e não precisa de nenhuma credencial pra funcionar. No compose ele fica numa
+  rede separada (`frontend-net`) onde só enxerga a API.
 
 Essa separação permite que cada serviço escale e seja implantado de forma independente.
 
@@ -49,14 +55,20 @@ JavaScript do navegador. Isso importa por dois motivos:
 | `/runs` | Lista os runs do usuário logado, com status (`created`/`processing`/`done`/`failed`). |
 | `/runs/new` | Cria um run (algoritmo, hiperparâmetros, métricas) e, opcionalmente, já envia o CSV medido×previsto. |
 | `/runs/{id}/upload` | Envia o CSV depois, para um run que já existe mas ainda não tem um. |
-| `/compare` | Tela de comparação ("Model Battle"): escolhe dois runs, clica em **SUBMIT** e vê hiperparâmetros, métricas e os dois gráficos lado a lado. |
+| `/compare` | Tela de comparação ("Model Battle"): escolhe dois runs, clica em **SUBMIT** e vê hiperparâmetros, métricas e os dois gráficos lado a lado. As imagens vêm de links pré-assinados do MinIO. |
+| `/audit` | **Atividade**: as últimas ações do usuário, lidas do log de auditoria no DynamoDB. Se o DynamoDB estiver inacessível (credenciais do Learner Lab vencidas), mostra um aviso. |
+| `/health` | Health check usado pelo compose. |
 
 O upload de CSV dispara o processamento assíncrono no backend — o run fica `processing` até o
 worker terminar de gerar os gráficos, e passa a `done` (ou `failed`, se o CSV não puder ser
 processado). Enquanto um gráfico ainda não existe, a tela de comparação avisa em vez de mostrar
 uma imagem quebrada.
 
-## Configuração (`.env`)
+## Configuração
+
+No Docker Compose do backend, as duas variáveis vêm do `environment:` do serviço `frontend`
+(`API_BASE_URL=http://api:8000` e `SECRET_KEY=${FRONTEND_SECRET_KEY}` do `.env` do backend). O
+`.env` deste repositório só vale para rodar o frontend sozinho:
 
 ```bash
 cp .env.example .env
@@ -64,31 +76,33 @@ cp .env.example .env
 
 | Variável | O que é |
 |---|---|
-| `API_BASE_URL` | Endereço da API do backend (ex.: `http://127.0.0.1:8000` local, ou o DNS do Load Balancer do backend em produção — nunca o IP de uma instância específica). |
-| `SECRET_KEY` | Chave usada só para assinar o cookie de sessão deste frontend (via `itsdangerous`). **Não é** a mesma chave que o backend usa para assinar o JWT — são segredos independentes, com finalidades diferentes. Em produção precisa ser um valor aleatório de verdade, gerado com `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`. |
+| `API_BASE_URL` | Endereço da API do backend (ex.: `http://127.0.0.1:8000` rodando no host; `http://api:8000` dentro do compose). |
+| `SECRET_KEY` | Chave usada só para assinar o cookie de sessão deste frontend (via `itsdangerous`). **Não é** a mesma chave que o backend usa para assinar o JWT — são segredos independentes, com finalidades diferentes. Gere com `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`. |
 
 ## Como rodar
 
-### Com `uv` (desenvolvimento)
+### Com Docker Compose (aplicação completa)
+
+Veja o [README do backend](https://github.com/arthcf/ml-arena-backend-v2#como-executar). Em resumo,
+com os dois repositórios lado a lado: `cd ml-arena-backend-v2 && cp .env.example .env` (preencha) e
+`docker compose up -d --build`. A aplicação abre em http://localhost:8001.
+
+### Sozinho, com `uv` (desenvolvimento)
+
+Com a API do backend rodando em `API_BASE_URL`:
 
 ```bash
 uv sync
 uv run fastapi dev app/main.py --port 8001
 ```
 
-### Com Docker
+## Imagem Docker
+
+O `Dockerfile` instala exatamente o `uv.lock` (`uv sync --frozen`), roda como usuário sem privilégios
+(`app`) e deixa o cache do uv fora da imagem. O `.dockerignore` impede que `.env`, `.git` e `.venv`
+entrem na imagem.
 
 ```bash
 docker build -t ml-arena-frontend .
-docker run -d --name frontend --env-file .env -p 8001:8001 --restart unless-stopped ml-arena-frontend
+docker run --rm -p 8001:8001 -e API_BASE_URL=http://<endereço-da-api>:8000 -e SECRET_KEY=... ml-arena-frontend
 ```
-
-Em ambos os casos, a aplicação precisa do backend já rodando e acessível no endereço configurado
-em `API_BASE_URL`. Depois de subir, acesse `http://localhost:8001` (ou o endereço da instância,
-em produção).
-
-## Deploy
-
-O frontend roda numa única instância EC2, sem Auto Scaling — diferente da API, ele não lida com
-carga variável que justifique escalar automaticamente. Não precisa de nenhuma IAM role: como não
-faz nenhuma chamada à AWS, só precisa de rede liberada para falar HTTP com o Load Balancer da API.
