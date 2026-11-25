@@ -5,7 +5,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth_guard import LoginRequired
 from app.config import settings
-from app.routes import auth, compare, runs
+from app.routes import audit, auth, compare, runs
 from app.services.api_client import ApiError
 from app.services.flash import flash
 
@@ -16,6 +16,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(auth.router)
 app.include_router(runs.router)
 app.include_router(compare.router)
+app.include_router(audit.router)
 
 
 @app.get("/", name="index")
