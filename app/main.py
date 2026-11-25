@@ -19,6 +19,12 @@ app.include_router(compare.router)
 app.include_router(audit.router)
 
 
+@app.get("/health", name="health")
+async def health():
+    """Usado pelo healthcheck do compose: só diz que o processo está de pé."""
+    return {"status": "ok"}
+
+
 @app.get("/", name="index")
 async def index():
     return RedirectResponse(url="/runs")

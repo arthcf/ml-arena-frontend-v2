@@ -1,0 +1,11 @@
+# Fica fora da imagem: segredos, ambiente local, histórico e o que só serve ao
+# desenvolvimento. O .env, em especial, nunca pode entrar: as variáveis chegam pelo compose.
+.env
+.git
+.venv
+__pycache__
+*.pyc
+.ruff_cache
+.pytest_cache
+docs
+assets
