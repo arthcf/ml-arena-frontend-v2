@@ -7,6 +7,12 @@
   const state = { a: null, b: null, plotKind: "measured_predicted" };
   const selectedIds = { a: null, b: null };
 
+  // Nome, algoritmo e hiperparâmetros são texto do usuário e entram via innerHTML.
+  function esc(value) {
+    const text = typeof value === "object" ? JSON.stringify(value) : String(value);
+    return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  }
+
   function fmt(value) {
     return typeof value === "number" ? value.toFixed(2) : "—";
   }
@@ -23,7 +29,7 @@
     const hp = Object.entries(run.hyperparams)
       .map(
         ([k, v]) =>
-          `<li class="list-group-item d-flex justify-content-between px-0"><span>${k}</span><span>${v}</span></li>`
+          `<li class="list-group-item d-flex justify-content-between px-0"><span>${esc(k)}</span><span>${esc(v)}</span></li>`
       )
       .join("");
     const plotUrl = run.plots?.[state.plotKind];
@@ -31,8 +37,8 @@
       ? `<img src="${plotUrl}" alt="${state.plotKind}" class="img-fluid border rounded mb-3" data-plot-img>`
       : `<div class="alert alert-warning mb-3" data-plot-img>Gráfico ainda sendo gerado — recarregue a página em alguns segundos.</div>`;
     panelEl(slot).innerHTML = `
-      <h5>${run.name}</h5>
-      <span class="badge text-bg-secondary mb-2">${run.algorithm}</span>
+      <h5>${esc(run.name)}</h5>
+      <span class="badge text-bg-secondary mb-2">${esc(run.algorithm)}</span>
       ${plotEl}
       <h6>Hiperparâmetros</h6>
       <ul class="list-group list-group-flush mb-3">${hp || '<li class="list-group-item px-0 text-muted">nenhum</li>'}</ul>
@@ -118,7 +124,7 @@
       .join("");
     target.innerHTML = `
       <table class="table mb-0">
-        <thead><tr><th>Métrica</th><th>${state.a.name}</th><th>${state.b.name}</th></tr></thead>
+        <thead><tr><th>Métrica</th><th>${esc(state.a.name)}</th><th>${esc(state.b.name)}</th></tr></thead>
         <tbody>${body}</tbody>
       </table>
     `;

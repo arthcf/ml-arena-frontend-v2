@@ -8,7 +8,7 @@ Projeto desenvolvido para a disciplina **Desenvolvimento de Software para Nuvem*
 **Trabalho 2**, a aplicação inteira roda em containers com Docker Compose.
 
 > **Para rodar a aplicação completa**, siga o README do backend:
-> [ml-arena-backend-v2](https://github.com/arthcf/ml-arena-backend-v2#como-executar). O
+> [ml-arena-backend-v2](https://github.com/arthcf/ml-arena-backend-v2#-começo-rápido). O
 > `docker-compose.yaml` fica lá e constrói este frontend a partir deste repositório, clonado ao lado.
 
 ## Arquitetura: por que dois repositórios
@@ -83,7 +83,8 @@ cp .env.example .env
 
 ### Com Docker Compose (aplicação completa)
 
-Veja o [README do backend](https://github.com/arthcf/ml-arena-backend-v2#como-executar). Em resumo,
+Veja o [README do backend](https://github.com/arthcf/ml-arena-backend-v2#-começo-rápido), que também
+traz a arquitetura, os diagramas e os prints. Em resumo,
 com os dois repositórios lado a lado: `cd ml-arena-backend-v2 && cp .env.example .env` (preencha) e
 `docker compose up -d --build`. A aplicação abre em http://localhost:8001.
 
