@@ -159,3 +159,15 @@ async def upload_measured_predicted(
         )
     _raise_for_status(response)
     return response.json()
+
+
+async def list_audit(token: str, limit: int = 50) -> list[dict[str, Any]]:
+    """Últimas ações do usuário logado, lidas do DynamoDB pela API (`GET /api/v1/audit`)."""
+    async with httpx.AsyncClient(
+        base_url=settings.api_base_url, timeout=10.0
+    ) as client:
+        response = await client.get(
+            "/api/v1/audit", params={"limit": limit}, headers=_auth_headers(token)
+        )
+    _raise_for_status(response)
+    return response.json()

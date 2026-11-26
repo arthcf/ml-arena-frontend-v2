@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Atividade · ML Arena{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Atividade</h1>
+  <span class="text-muted small">Últimas ações da sua conta (log de auditoria no DynamoDB)</span>
+</div>
+
+{% if error %}
+  <div class="alert alert-warning">{{ error }}</div>
+{% elif not logs %}
+  <p class="text-muted">Nenhuma ação registrada ainda.</p>
+{% else %}
+<table class="table table-hover bg-white align-middle shadow-sm">
+  <thead>
+    <tr>
+      <th>Quando (UTC)</th>
+      <th>Ação</th>
+      <th>Recurso</th>
+      <th>Detalhes</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for log in logs %}
+    <tr>
+      <td class="text-nowrap">{{ log.timestamp[:19].replace("T", " ") }}</td>
+      <td><span class="badge text-bg-secondary">{{ log.action }}</span></td>
+      <td>{{ log.resource_id or "—" }}</td>
+      <td class="small text-muted">
+        {% if log.details %}
+          {% for key, value in log.details.items() %}
+            <div><strong>{{ key }}</strong>: {{ value }}</div>
+          {% endfor %}
+        {% else %}—{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}
